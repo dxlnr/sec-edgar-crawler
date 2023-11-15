@@ -1,22 +1,21 @@
-import click
-import cssutils
 import json
 import logging
-import numpy as np
 import os
-import pandas as pd
 import re
 import sys
-
-from bs4 import BeautifulSoup
 from html.parser import HTMLParser
-from pathos.pools import ProcessPool
-from tqdm import tqdm
 from typing import Any, Dict, List, Optional, Tuple
 
-from logger import Logger
+import click
+import cssutils
+import numpy as np
+import pandas as pd
+from bs4 import BeautifulSoup
+from pathos.pools import ProcessPool
+from tqdm import tqdm
 
 from __init__ import DATASET_DIR
+from logger import Logger
 
 # Change the default recursion limit of 1000 to 30000
 sys.setrecursionlimit(30000)
@@ -47,8 +46,7 @@ class HtmlStripper(HTMLParser):
     """
 
     def __init__(self):
-        """
-        Initializes HtmlStripper by calling the constructor of the parent class, resetting the parser,
+        """Initializes HtmlStripper by calling the constructor of the parent class, resetting the parser,
         and initializing some attributes.
         """
         super().__init__()
@@ -58,23 +56,18 @@ class HtmlStripper(HTMLParser):
         self.fed = []  # List to hold the data
 
     def handle_data(self, data: str) -> None:
-        """
-        Append the raw data to the list.
+        """Append the raw data to the list.
+        This method is called whenever raw data is encountered.
+        In the context of this class, we just append the data to the fed list.
 
-        This method is called whenever raw data is encountered. In the context of
-        this class, we just append the data to the fed list.
-
-        Args:
-                data (str): The data encountered.
+        :param data (str): The data encountered.
         """
         self.fed.append(data)
 
     def get_data(self) -> str:
-        """
-        Join the list to get the data without HTML tags.
+        """Join the list to get the data without HTML tags.
 
-        Returns:
-                str: The data as a single string.
+        :returns: The data as a single string.
         """
         return "".join(self.fed)
 
@@ -116,18 +109,16 @@ class ExtractItems:
         extracted_files_folder: str,
         skip_extracted_filings: bool,
     ) -> None:
-        """
-        Constructs all the necessary attributes for the ExtractItems object.
+        """Constructs all the necessary attributes for the ExtractItems object.
 
-        Args:
-                remove_tables (bool): Whether to remove tables.
-                items_to_extract (List[str]): Items to be extracted. If None, all items are extracted.
-                raw_files_folder (str): Path of the folder containing raw files.
-                extracted_files_folder (str): Path of the folder where extracted files should be saved.
-                skip_extracted_filings (bool): Whether to skip already extracted filings.
+        :param remove_tables: Whether to remove tables.
+        :param items_to_extract: Items to be extracted. If None, all items are extracted.
+        :param raw_files_folder: Path of the folder containing raw files.
+        :param extracted_files_folder: Path of the folder where extracted files should be saved.
+        :param skip_extracted_filings: Whether to skip already extracted filings.
         """
         self.remove_tables = remove_tables
-        # Default list of items to extract
+
         self.items_list = [
             "1",
             "1A",
@@ -373,7 +364,7 @@ class ExtractItems:
                     # Parse given cssText which is assumed to be the content of a HTML style attribute
                     style = cssutils.parseStyle(tr["style"])
 
-					# Check for background color
+                    # Check for background color
                     if (
                         style["background"]
                         and style["background"].lower()
@@ -382,7 +373,7 @@ class ExtractItems:
                         style["background-color"]
                         and style["background-color"].lower()
                         not in ["none", "transparent", "#ffffff", "#fff", "white"]
-                    ): 
+                    ):
                         background_found = True
                         break
 
