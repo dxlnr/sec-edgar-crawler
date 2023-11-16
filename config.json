@@ -1,9 +1,9 @@
 {
 	"edgar_crawler": {
-		"start_year": 2023,
-		"end_year": 2023,
+		"start_year": 2022,
+		"end_year": 2022,
 		"quarters": [1, 2, 3, 4],
-		"filing_types": ["10-Q"],
+		"filing_types": ["10-K"],
 		"cik_tickers": ["MSFT"],
 		"user_agent": "alpha inc. illner.daniel@gmail.com",
 		"raw_filings_folder": "RAW_FILINGS",

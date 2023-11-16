@@ -11,6 +11,7 @@ import cssutils
 import numpy as np
 import pandas as pd
 from bs4 import BeautifulSoup
+import bs4
 from pathos.pools import ProcessPool
 from tqdm import tqdm
 
@@ -133,6 +134,26 @@ class ExtractItems:
             "14",
             "15",
         ]
+
+        self.items_list_10q = [
+            "1_1",
+            "1_1A",
+            "1_1B",
+            "1_1C",
+            "1_1D",
+            "1_1E",
+            "1_1F",
+            "1_1G",
+            "1_2",
+            "1_3",
+            "1_4",
+            "1_5",
+            "2_1",
+            "2_1A",
+            "2_2",
+            "2_5",
+            "2_6",
+        ]
         # If no specific items to extract are provided, use default list
         self.items_to_extract = (
             items_to_extract if items_to_extract else self.items_list
@@ -213,14 +234,12 @@ class ExtractItems:
             text,
             flags=re.IGNORECASE,
         )
-
         text = re.sub(
             r"(ITEM|PART)(\s+\d{1,2}[AB]?)([\-•])",
             r"\1\2 \3 ",
             text,
             flags=re.IGNORECASE,
         )
-
         # Remove unnecessary headers
         regex_flags = re.IGNORECASE | re.MULTILINE
         text = re.sub(
@@ -231,7 +250,6 @@ class ExtractItems:
             text,
             flags=regex_flags,
         )
-
         # Remove page numbers and headers
         text = re.sub(
             r"\n[^\S\r\n]*[-‒–—]*\d+[-‒–—]*[^\S\r\n]*\n", "\n", text, flags=regex_flags
@@ -276,6 +294,28 @@ class ExtractItems:
             spaces_percentage = 0
 
         return non_blank_digits_percentage, spaces_percentage
+
+    @staticmethod
+    def find_background_color(tbl: bs4.element.Tag) -> bool:
+        trs = (tbl.find_all("tr", attrs={"style": True}) + tbl.find_all("td", attrs={"style": True}) + tbl.find_all("th", attrs={"style": True}))
+
+        background_found = False
+        for tr in trs:
+            # Parse given cssText which is assumed to be the content of a HTML style attribute
+            style = cssutils.parseStyle(tr["style"])
+            if (
+                style["background"]
+                and style["background"].lower()
+                not in ["none", "transparent", "#ffffff", "#fff", "white"]
+            ) or (
+                style["background-color"]
+                and style["background-color"].lower()
+                not in ["none", "transparent", "#ffffff", "#fff", "white"]
+            ):
+                background_found = True
+                break
+
+        return background_found
 
     def remove_html_tables(self, doc_10k: str, is_html: bool) -> str:
         """Remove HTML tables that contain numerical data.
@@ -322,29 +362,7 @@ class ExtractItems:
                     continue
 
                 # Find all <tr> elements with style attribute and check for background color
-                trs = (
-                    tbl.find_all("tr", attrs={"style": True})
-                    + tbl.find_all("td", attrs={"style": True})
-                    + tbl.find_all("th", attrs={"style": True})
-                )
-
-                background_found = False
-                for tr in trs:
-                    # Parse given cssText which is assumed to be the content of a HTML style attribute
-                    style = cssutils.parseStyle(tr["style"])
-
-                    # Check for background color
-                    if (
-                        style["background"]
-                        and style["background"].lower()
-                        not in ["none", "transparent", "#ffffff", "#fff", "white"]
-                    ) or (
-                        style["background-color"]
-                        and style["background-color"].lower()
-                        not in ["none", "transparent", "#ffffff", "#fff", "white"]
-                    ):
-                        background_found = True
-                        break
+                background_found = ExtractItems.find_background_color(tbl)
 
                 # Find all <tr> elements with bgcolor attribute and check for background color
                 trs = (
@@ -352,7 +370,6 @@ class ExtractItems:
                     + tbl.find_all("td", attrs={"bgcolor": True})
                     + tbl.find_all("th", attrs={"bgcolor": True})
                 )
-
                 bgcolor_found = False
                 for tr in trs:
                     if tr["bgcolor"].lower() not in [
@@ -364,7 +381,6 @@ class ExtractItems:
                     ]:
                         bgcolor_found = True
                         break
-
                 # Remove the table if a background or bgcolor attribute with non-default color is found
                 if bgcolor_found or background_found:
                     tbl.decompose()
@@ -374,6 +390,46 @@ class ExtractItems:
             doc_10k = re.sub(r"<TABLE>.*?</TABLE>", "", str(doc_10k), flags=regex_flags)
 
         return doc_10k
+
+    def retrieve_html_tables(self, doc: str, is_html: bool) -> str:
+        """Remove HTML tables that contain numerical data.
+            Note that there are many corner-cases in the tables that have text data instead of numerical.
+
+        :param doc: Some html document
+        :param is_html: Whether the document contains html code or just plain text
+        :returns: The 10-K html without numerical tables
+        """
+        dfs = []
+
+        if is_html:
+            tables = doc.find_all("table")
+
+            for tbl in tables:
+                if ExtractItems.find_background_color(tbl):
+                    rows = tbl.find_all('tr')
+
+                    table_data = []
+                    for row in rows[1:]:
+                        cols = row.find_all('td')
+                        cols = [ele.text.strip() for ele in cols]
+                        cols = [re.sub(r'[\$\)]', '', ele).replace('(', '-') for ele in cols]
+                        cols = list(filter(lambda x: len(x) > 0, cols))
+                        if len(cols) > 1:
+                            table_data.append(cols)
+
+                    c = max([len(r) for r in table_data])
+                    for idx, r in enumerate(table_data):
+                        if len(r) != c:
+                            table_data[idx] = [''] * (c - len(r)) + r
+
+                    dfs.append(pd.DataFrame(table_data[1:], columns=table_data[0]))
+
+        with open('multiple_dfs.csv', 'w') as f:
+            for df in dfs:
+                df.to_csv(f, index=False)
+                f.write('\n')
+
+        return dfs
 
     def parse_item(
         self,
@@ -432,7 +488,6 @@ class ExtractItems:
                 )
             ):
                 offset = match.start()
-
                 possible = list(
                     re.finditer(
                         rf"\n[^\S\r\n]*ITEM\s+{item_index}[.*~\-:\s].+?([^\S\r\n]*ITEM\s+{str(next_item_index)}[.*~\-:\s])",
@@ -440,7 +495,6 @@ class ExtractItems:
                         flags=regex_flags,
                     )
                 )
-
                 # If there is a match, add it to the list of possible sections
                 if possible:
                     possible_sections_list += [(offset, possible)]
@@ -548,8 +602,68 @@ class ExtractItems:
                 break
         return item_section
 
-    def extract_items(self, filing_metadata: Dict[str, Any]) -> Any:
-        """Extracts all items/sections for a 10-K file and writes it to a CIK_10K_YEAR.json file (eg. 1384400_10K_2017.json)
+    def extract_items_10q(self, filing_metadata: Dict[str, Any]) -> Any:
+        """Extracts all items/sections for a 10-Q file and writes it to a CIK_10Q_YEAR.json file.
+            (eg. 1384400_10Q_2017.json)
+
+        :param filing_metadata: a pandas series containing all filings metadata.
+        :returns: The extracted JSON content.
+        """
+        absolute_10q_fn = os.path.join(
+            self.raw_files_folder, filing_metadata["filename"]
+        )
+
+        # Read the content of the 10-K file
+        with open(absolute_10q_fn, "r", errors="backslashreplace") as file:
+            content = file.read()
+
+        # Remove all embedded pdfs that might be seen in few old 10-K txt annual reports
+        content = re.sub(r"<PDF>.*?</PDF>", "", content, flags=regex_flags)
+
+        # Find all <DOCUMENT> tags within the content
+        documents = re.findall("<DOCUMENT>.*?</DOCUMENT>", content, flags=regex_flags)
+
+        # Initialize variables
+        doc_10q = None
+        found_10q, is_html = False, False
+
+        # Find the 10-Q document
+        for doc in documents:
+            # Find the <TYPE> tag within each <DOCUMENT> tag to identify the type of document
+            doc_type = re.search(r"\n[^\S\r\n]*<TYPE>(.*?)\n", doc, flags=regex_flags)
+            doc_type = doc_type.group(1) if doc_type else None
+
+            # Check if the document is a 10-Q
+            if doc_type.startswith("10"):
+                # Check if the document is HTML or plain text
+                doc_10q = BeautifulSoup(doc, "lxml")
+                is_html = (True if doc_10q.find("td") else False) and (
+                    True if doc_10q.find("tr") else False
+                )
+                if not is_html:
+                    doc_10q = doc
+                found_10q = True
+                break
+
+        if not found_10q:
+            if documents:
+                LOGGER.info(
+                    f'\nCould not find document type 10Q for {filing_metadata["filename"]}'
+                )
+            # If no 10-K document is found, parse the entire content as HTML or plain text
+            doc_10q = BeautifulSoup(content, "lxml")
+            is_html = (True if doc_10q.find("td") else False) and (
+                True if doc_10q.find("tr") else False
+            )
+            if not is_html:
+                doc_10q = content
+
+        print("---------------")
+        print(self.retrieve_html_tables(doc_10q, is_html))
+
+    def extract_items_10k(self, filing_metadata: Dict[str, Any]) -> Any:
+        """Extracts all items/sections for a 10-K file and writes it to a CIK_10K_YEAR.json file.
+            (eg. 1384400_10K_2017.json)
 
         :param filing_metadata: a pandas series containing all filings metadata.
         :returns: The extracted JSON content.
@@ -632,7 +746,7 @@ class ExtractItems:
         for item_index in self.items_to_extract:
             json_content[f"item_{item_index}"] = ""
 
-        # Extract the text from the document and clean it
+        # Extract the text from the document and clean it.
         text = ExtractItems.strip_html(str(doc_10k))
         text = ExtractItems.clean_text(text)
 
@@ -662,6 +776,7 @@ class ExtractItems:
 
     def process_filing(self, filing_metadata: Dict[str, Any]) -> int:
         """Process a filing by extracting items/sections and saving the content to a JSON file.
+
         :param filing_metadata: A dictionary containing the filing metadata.
         :returns: 0 if the processing is skipped, 1 if the processing is performed.
         """
@@ -671,15 +786,24 @@ class ExtractItems:
         absolute_json_filename = os.path.join(
             self.extracted_files_folder, json_filename
         )
-
         # Skip processing if the extracted JSON file already exists and skip flag is enabled
         if self.skip_extracted_filings and os.path.exists(absolute_json_filename):
             return 0
 
-        # Extract items from the filing
-        json_content = self.extract_items(filing_metadata)
+        print("\nProcessing", filing_metadata)
 
-        # Write the JSON content to the file if it's not None
+        # Extract items from the filing
+        if filing_metadata["Type"] == "10-K":
+            json_content = self.extract_items_10k(filing_metadata)
+        elif filing_metadata["Type"] == "10-Q":
+            json_content = self.extract_items_10q(filing_metadata)
+        else:
+            LOGGER.info(
+                f'\nSkipping {filing_metadata["filename"]} because it is not a 10-K or 10-Q'
+            )
+            return 0
+
+        # Write the JSON content to the file if not None.
         if json_content is not None:
             with open(absolute_json_filename, "w") as filepath:
                 json.dump(json_content, filepath, indent=4)
@@ -688,8 +812,6 @@ class ExtractItems:
 
 
 def main() -> None:
-    """Gets the list of 10K files and extracts all textual items/sections by calling the extract_items() function."""
-
     with open("config.json") as fin:
         config = json.load(fin)["extract_items"]
 
@@ -726,7 +848,7 @@ def main() -> None:
         extracted_files_folder=extracted_filings_folder,
         skip_extracted_filings=config["skip_extracted_filings"],
     )
-    LOGGER.info("Starting extraction...\n")
+    LOGGER.info("Starting extraction.\n")
 
     list_of_series = list(zip(*filings_metadata_df.iterrows()))[1]
 
@@ -742,7 +864,7 @@ def main() -> None:
 
     LOGGER.info("\nItem extraction is completed successfully.")
     LOGGER.info(f"{sum(processed)} files were processed.")
-    LOGGER.info(f"Extracted filings are saved to: {extracted_filings_folder}")
+    LOGGER.info(f"Extracted filings are saved to: {extracted_filings_folder}.")
 
 
 if __name__ == "__main__":

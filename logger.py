@@ -6,17 +6,9 @@ from __init__ import LOGGING_DIR
 
 
 class Logger:
-    """
-    Creates and initializes a logger using the `logging` Python module
-    """
+    """Creates and initializes a logger using the `logging` Python module."""
 
-    # TODO: Modify filename to *.log
-
-    def __init__(self, name, filename="log.txt"):
-        """
-        Initializes the logger
-        :param filename:
-        """
+    def __init__(self, name, filename: str = "log.txt"):
         self.timestamp = strftime("%Y_%m_%d_%H_%M_%S", gmtime())
         self.filename = f"{name}_{self.timestamp}_{filename}"
         self.name = name
@@ -28,7 +20,6 @@ class Logger:
             filename=os.path.join(LOGGING_DIR, self.filename),
             filemode="a",
         )
-
         # Define a Handler which writes INFO messages or higher to the sys.stderr
         console = logging.StreamHandler()
         console.setLevel(logging.DEBUG)
@@ -45,7 +36,4 @@ class Logger:
         self.logger_object = logging.getLogger(name)
 
     def get_logger(self):
-        """
-        :return: the logger object
-        """
         return self.logger_object
