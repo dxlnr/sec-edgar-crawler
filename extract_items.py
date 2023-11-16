@@ -32,28 +32,26 @@ LOGGER = Logger(name="ExtractItems").get_logger()
 
 
 class HtmlStripper(HTMLParser):
-    """
-    Class to strip HTML tags from a string.
+    """Class to strip HTML tags from a string.
 
     The class inherits from the HTMLParser class, and overrides some of its methods
     to facilitate the removal of HTML tags. It also uses the feed method of the parent class
     to parse the HTML.
 
-    Attributes:
-            strict (bool): Not used, but inherited from parent class.
-            convert_charrefs (bool): Whether to convert all character references. By default, it is True.
-            fed (list): List to hold the data during parsing.
+    :attribute strict: Not used, but inherited from parent class.
+    :attributes convert_charrefs: Whether to convert all character references. By default, it is True.
+    :attributes fed: List to hold the data during parsing.
     """
 
     def __init__(self):
-        """Initializes HtmlStripper by calling the constructor of the parent class, resetting the parser,
-        and initializing some attributes.
+        """Initializes HtmlStripper by calling the constructor of the parent class,
+        resetting the parser, and initializing some attributes.
         """
         super().__init__()
         self.reset()
-        self.strict = False  # Not used, but necessary for inheritance
-        self.convert_charrefs = True  # Convert all character references
-        self.fed = []  # List to hold the data
+        self.strict = False
+        self.convert_charrefs = True
+        self.fed = []
 
     def handle_data(self, data: str) -> None:
         """Append the raw data to the list.
@@ -72,33 +70,27 @@ class HtmlStripper(HTMLParser):
         return "".join(self.fed)
 
     def strip_tags(self, html: str) -> str:
-        """
-        Strip the HTML tags from the string.
+        """Strip the HTML tags from the string.
 
         This method feeds the HTML to the parser and returns the data without
         HTML tags.
 
-        Args:
-                html (str): The HTML string.
-
-        Returns:
-                str: The string without HTML tags.
+        :param html: The HTML string.
+        :returns: The string without HTML tags.
         """
         self.feed(html)
         return self.get_data()
 
 
 class ExtractItems:
-    """
-    A class used to extract certain items from the raw files.
+    """A class used to extract certain items from the raw files.
 
-    Attributes:
-            remove_tables (bool): Flag to indicate if tables need to be removed.
-            items_list (List[str]): List of all items that could be extracted.
-            items_to_extract (List[str]): List of items to be extracted. If not provided, all items will be extracted.
-            raw_files_folder (str): Path of the directory containing raw files.
-            extracted_files_folder (str): Path of the directory to save the extracted files.
-            skip_extracted_filings (bool): Flag to indicate if already extracted filings should be skipped.
+    :param remove_tables: Flag to indicate if tables need to be removed.
+    :param items_list: List of all items that could be extracted.
+    :param items_to_extract: List of items to be extracted. If not provided, all items will be extracted.
+    :param raw_files_folder (str): Path of the directory containing raw files.
+    :param extracted_files_folder (str): Path of the directory to save the extracted files.
+    :param skip_extracted_filings (bool): Flag to indicate if already extracted filings should be skipped.
     """
 
     def __init__(
@@ -151,14 +143,10 @@ class ExtractItems:
 
     @staticmethod
     def strip_html(html_content: str) -> str:
-        """
-        Strip the HTML tags from the HTML content.
+        """Strip the HTML tags from the HTML content.
 
-        Args:
-                html_content (str): The HTML content.
-
-        Returns:
-                str: The stripped HTML content.
+        :param html_content (str): The HTML content.
+        :returns: The stripped HTML content.
         """
         # Replace closing tags of certain elements with two newline characters
         html_content = re.sub(r"(<\s*/\s*(div|tr|p|li|)\s*>)", r"\1\n\n", html_content)
@@ -173,16 +161,11 @@ class ExtractItems:
 
     @staticmethod
     def remove_multiple_lines(text: str) -> str:
-        """
-        Replace consecutive new lines and spaces with a single new line or space.
+        """Replace consecutive new lines and spaces with a single new line or space.
 
-        Args:
-                text (str): The string containing the text.
-
-        Returns:
-                str: The string without multiple new lines or spaces.
+        :param text: The string containing the text.
+        :returns: The string without multiple new lines or spaces.
         """
-        # Replace multiple new lines and spaces with a temporary token
         text = re.sub(r"(( )*\n( )*){2,}", "#NEWLINE", text)
         # Replace all new lines with a space
         text = re.sub(r"\n", " ", text)
@@ -195,14 +178,10 @@ class ExtractItems:
 
     @staticmethod
     def clean_text(text: str) -> str:
-        """
-        Clean the text by removing unnecessary blocks of text and substituting special characters.
+        """Clean the text by removing unnecessary blocks of text and substituting special characters.
 
-        Args:
-                text (str): The raw text string.
-
-        Returns:
-                str: The normalized, clean text.
+        :param text: The raw text string.
+        :returns: The normalized, clean text.
         """
         # Replace special characters with their corresponding substitutions
         text = re.sub(r"[\xa0]", " ", text)
@@ -222,7 +201,6 @@ class ExtractItems:
             ws = r"[^\S\r\n]"
             return f'{match[1]}{re.sub(ws, r"", match[2])}{match[3]}{match[4]}'
 
-        # Fix broken section headers
         text = re.sub(
             r"(\n[^\S\r\n]*)(P[^\S\r\n]*A[^\S\r\n]*R[^\S\r\n]*T)([^\S\r\n]+)((\d{1,2}|[IV]{1,2})[AB]?)",
             remove_whitespace,
@@ -269,14 +247,10 @@ class ExtractItems:
 
     @staticmethod
     def calculate_table_character_percentages(table_text: str) -> Tuple[float, float]:
-        """
-        Calculate character type percentages contained in the table text
+        """Calculate character type percentages contained in the table text
 
-        Args:
-                table_text (str): The table text
-
-        Returns:
-                Tuple[float, float]: Percentage of non-blank digit characters, Percentage of space characters
+        :param table_text: The table text
+        :returns: Percentage of non-blank digit characters, Percentage of space characters
         """
         digits = sum(
             c.isdigit() for c in table_text
@@ -304,18 +278,13 @@ class ExtractItems:
         return non_blank_digits_percentage, spaces_percentage
 
     def remove_html_tables(self, doc_10k: str, is_html: bool) -> str:
+        """Remove HTML tables that contain numerical data.
+            Note that there are many corner-cases in the tables that have text data instead of numerical.
+
+        :param doc_10k: The 10-K html
+        :param is_html: Whether the document contains html code or just plain text
+        :returns: The 10-K html without numerical tables
         """
-        Remove HTML tables that contain numerical data
-        Note that there are many corner-cases in the tables that have text data instead of numerical
-
-        Args:
-                doc_10k (str): The 10-K html
-                is_html (bool): Whether the document contains html code or just plain text
-
-        Returns:
-                str: The 10-K html without numerical tables
-        """
-
         if is_html:
             tables = doc_10k.find_all("table")
 
@@ -413,20 +382,14 @@ class ExtractItems:
         next_item_list: List[str],
         positions: List[int],
     ) -> Tuple[str, List[int]]:
+        """Parses the specified item/section in a 10-K text.
+
+        :param text (str): The 10-K text.
+        :param item_index (str): Number of the requested Item/Section of the 10-K text.
+        :param next_item_list (List[str]): List of possible next 10-K item sections.
+        :param positions (List[int]): List of the end positions of previous item sections.
+        :returns: The item/section as a text string and the updated end positions of item sections.
         """
-        Parses the specified item/section in a 10-K text.
-
-        Args:
-                text (str): The 10-K text.
-                item_index (str): Number of the requested Item/Section of the 10-K text.
-                next_item_list (List[str]): List of possible next 10-K item sections.
-                positions (List[int]): List of the end positions of previous item sections.
-
-        Returns:
-                Tuple[str, List[int]]: The item/section as a text string and the updated end positions of item sections.
-        """
-
-        # Set the regex flags
         regex_flags = re.IGNORECASE | re.DOTALL
 
         # Modify the item index format for matching in the text
@@ -442,11 +405,6 @@ class ExtractItems:
             item_index = item_index.replace(
                 "B", r"[^\S\r\n]*B"
             )  # Regex pattern for "B" item indexes
-
-        # Depending on the item_index, search for subsequent sections.
-        # There might be many 'candidate' text sections between 2 Items.
-        # For example, the Table of Contents (ToC) still counts as a match when searching text between 'Item 3' and 'Item 4'
-        # But we do NOT want that specific text section; We want the detailed section which is *after* the ToC
 
         possible_sections_list = []
         for next_item_index in next_item_list:
@@ -513,19 +471,13 @@ class ExtractItems:
         text: str,
         positions: List[int],
     ) -> Tuple[str, List[int]]:
+        """Returns the correct section from a list of all possible item sections.
+
+        :param possible_sections_list: List containing all the possible sections between Item X and Item Y.
+        :param text: The whole text.
+        :param positions: List of the end positions of previous item sections.
+        :returns: The correct section and the updated list of end positions.
         """
-        Returns the correct section from a list of all possible item sections.
-
-        Args:
-                possible_sections_list: List containing all the possible sections between Item X and Item Y.
-                text: The whole text.
-                positions: List of the end positions of previous item sections.
-
-        Returns:
-                Tuple[str, List[int]]: The correct section and the updated list of end positions.
-        """
-
-        # Initialize variables
         item_section: str = ""
         max_match_length: int = 0
         max_match: Optional[re.Match] = None
@@ -567,34 +519,26 @@ class ExtractItems:
                     + max_match.start() : max_match_offset
                     + max_match.regs[1][0]
                 ]
-            # Update the list of end positions
             positions.append(max_match_offset + max_match.end() - len(max_match[1]) - 1)
 
         return item_section, positions
 
     @staticmethod
     def get_last_item_section(item_index: str, text: str, positions: List[int]) -> str:
+        """Returns the text section starting through a given item. This is useful in cases where Item 15 is the last item and there is no Item 16 to indicate its ending.
+        Also, it is useful in cases like EDGAR's old .txt files (mostly before 2005), where there is no Item 15; thus, ITEM 14 is the last one there.
+
+        :param item_index: The index of the item/section in the 10-K ('14' or '15')
+        :param text: The whole 10-K text
+        :param positions: List of the end positions of previous item sections
+        :returns: All the remaining text until the end, starting from the specified item_index
         """
-        Returns the text section starting through a given item. This is useful in cases where Item 15 is the last item
-        and there is no Item 16 to indicate its ending. Also, it is useful in cases like EDGAR's old .txt files
-        (mostly before 2005), where there is no Item 15; thus, ITEM 14 is the last one there.
-
-        Args:
-                item_index (str): The index of the item/section in the 10-K ('14' or '15')
-                text (str): The whole 10-K text
-                positions (List[int]): List of the end positions of previous item sections
-
-        Returns:
-                str: All the remaining text until the end, starting from the specified item_index
-        """
-
         # Find all occurrences of the item/section using regex
         item_list = list(
             re.finditer(
                 rf"\n[^\S\r\n]*ITEM\s+{item_index}[.\-:\s].+?", text, flags=regex_flags
             )
         )
-
         item_section = ""
         for item in item_list:
             # Check if the item starts after the last known position
@@ -602,20 +546,14 @@ class ExtractItems:
                 # Extract the remaining text from the specified item_index
                 item_section = text[item.start() :].strip()
                 break
-
         return item_section
 
     def extract_items(self, filing_metadata: Dict[str, Any]) -> Any:
+        """Extracts all items/sections for a 10-K file and writes it to a CIK_10K_YEAR.json file (eg. 1384400_10K_2017.json)
+
+        :param filing_metadata: a pandas series containing all filings metadata.
+        :returns: The extracted JSON content.
         """
-        Extracts all items/sections for a 10-K file and writes it to a CIK_10K_YEAR.json file (eg. 1384400_10K_2017.json)
-
-        Args:
-                filing_metadata (Dict[str, Any]): a pandas series containing all filings metadata
-
-        Returns:
-                Any: The extracted JSON content
-        """
-
         absolute_10k_filename = os.path.join(
             self.raw_files_folder, filing_metadata["filename"]
         )
@@ -723,17 +661,10 @@ class ExtractItems:
         return json_content
 
     def process_filing(self, filing_metadata: Dict[str, Any]) -> int:
+        """Process a filing by extracting items/sections and saving the content to a JSON file.
+        :param filing_metadata: A dictionary containing the filing metadata.
+        :returns: 0 if the processing is skipped, 1 if the processing is performed.
         """
-        Process a filing by extracting items/sections and saving the content to a JSON file.
-
-        Args:
-                filing_metadata (Dict[str, Any]): A dictionary containing the filing metadata.
-
-        Returns:
-                int: 0 if the processing is skipped, 1 if the processing is performed.
-        """
-
-        # Generate the JSON filename based on the original filename
         json_filename = f'{filing_metadata["filename"].split(".")[0]}.json'
 
         # Create the absolute path for the JSON file
@@ -757,9 +688,7 @@ class ExtractItems:
 
 
 def main() -> None:
-    """
-    Gets the list of 10K files and extracts all textual items/sections by calling the extract_items() function.
-    """
+    """Gets the list of 10K files and extracts all textual items/sections by calling the extract_items() function."""
 
     with open("config.json") as fin:
         config = json.load(fin)["extract_items"]
@@ -767,7 +696,6 @@ def main() -> None:
     filings_metadata_filepath = os.path.join(
         DATASET_DIR, config["filings_metadata_file"]
     )
-
     # Check if the filings metadata file exists
     if os.path.exists(filings_metadata_filepath):
         filings_metadata_df = pd.read_csv(filings_metadata_filepath, dtype=str)
@@ -798,7 +726,6 @@ def main() -> None:
         extracted_files_folder=extracted_filings_folder,
         skip_extracted_filings=config["skip_extracted_filings"],
     )
-
     LOGGER.info("Starting extraction...\n")
 
     list_of_series = list(zip(*filings_metadata_df.iterrows()))[1]

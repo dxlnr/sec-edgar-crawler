@@ -1,12 +1,12 @@
-import os
 import json
+import os
 import tempfile
+import unittest
 import zipfile
 
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-import unittest
 
 from extract_items import ExtractItems
 

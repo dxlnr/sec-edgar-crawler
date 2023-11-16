@@ -1,6 +1,7 @@
-import os
 import logging
-from time import strftime, gmtime
+import os
+from time import gmtime, strftime
+
 from __init__ import LOGGING_DIR
 
 

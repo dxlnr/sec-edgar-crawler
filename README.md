@@ -8,6 +8,7 @@
 
 ## Usage
 
+#### (1) Configuration
 - Before running any script, you should edit the `config.json` file, which configures the behavior of our 2 modules. 
   - Arguments for `edgar_crawler.py`, the module to download financial reports:
       - `start_year XXXX`: the year range to start from (default is 2021).
@@ -32,6 +33,14 @@
     - `remove_tables`: Whether to remove tables containing mostly numerical (financial) data. This work is mostly to facilitate NLP research where, often, numerical tables are not useful.
     - `skip_extracted_filings`: Whether to skip already extracted filings or extract them nonetheless.<br> Default value is `True`.
 
-- To download financial reports from EDGAR, run `python edgar_crawler.py`.
-- To clean and extract specific item sections from already-downloaded 10-K documents, run `python extract_items.py`.
-  - Reminder: We currently support the extraction of 10-K documents. 
+#### (2) Run
+
+To download financial reports from EDGAR, run 
+```bash
+python edgar_crawler.py
+```
+To clean and extract specific item sections from already-downloaded 10-K documents, run 
+```bash
+python extract_items.py
+```
+**Reminder: Currently only the extraction of 10-K documents is supported.**
