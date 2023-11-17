@@ -6,12 +6,12 @@ import sys
 from html.parser import HTMLParser
 from typing import Any, Dict, List, Optional, Tuple
 
+import bs4
 import click
 import cssutils
 import numpy as np
 import pandas as pd
 from bs4 import BeautifulSoup
-import bs4
 from pathos.pools import ProcessPool
 from tqdm import tqdm
 
@@ -297,7 +297,11 @@ class ExtractItems:
 
     @staticmethod
     def find_background_color(tbl: bs4.element.Tag) -> bool:
-        trs = (tbl.find_all("tr", attrs={"style": True}) + tbl.find_all("td", attrs={"style": True}) + tbl.find_all("th", attrs={"style": True}))
+        trs = (
+            tbl.find_all("tr", attrs={"style": True})
+            + tbl.find_all("td", attrs={"style": True})
+            + tbl.find_all("th", attrs={"style": True})
+        )
 
         background_found = False
         for tr in trs:
@@ -406,13 +410,15 @@ class ExtractItems:
 
             for tbl in tables:
                 if ExtractItems.find_background_color(tbl):
-                    rows = tbl.find_all('tr')
+                    rows = tbl.find_all("tr")
 
                     table_data = []
                     for row in rows[1:]:
-                        cols = row.find_all('td')
+                        cols = row.find_all("td")
                         cols = [ele.text.strip() for ele in cols]
-                        cols = [re.sub(r'[\$\)]', '', ele).replace('(', '-') for ele in cols]
+                        cols = [
+                            re.sub(r"[\$\)]", "", ele).replace("(", "-") for ele in cols
+                        ]
                         cols = list(filter(lambda x: len(x) > 0, cols))
                         if len(cols) > 1:
                             table_data.append(cols)
@@ -420,14 +426,14 @@ class ExtractItems:
                     c = max([len(r) for r in table_data])
                     for idx, r in enumerate(table_data):
                         if len(r) != c:
-                            table_data[idx] = [''] * (c - len(r)) + r
+                            table_data[idx] = [""] * (c - len(r)) + r
 
                     dfs.append(pd.DataFrame(table_data[1:], columns=table_data[0]))
 
-        with open('multiple_dfs.csv', 'w') as f:
-            for df in dfs:
-                df.to_csv(f, index=False)
-                f.write('\n')
+        # with open('multiple_dfs.csv', 'w') as f:
+        #     for df in dfs:
+        #         df.to_csv(f, index=False)
+        #         f.write('\n')
 
         return dfs
 
@@ -658,8 +664,64 @@ class ExtractItems:
             if not is_html:
                 doc_10q = content
 
-        print("---------------")
-        print(self.retrieve_html_tables(doc_10q, is_html))
+        csv_content = self.retrieve_html_tables(doc_10q, is_html)
+
+        # Check if the document is plain text without <DOCUMENT> tags (e.g., old TXT format)
+        if filing_metadata["filename"].endswith("txt") and not documents:
+            LOGGER.info(f'\nNo <DOCUMENT> tag for {filing_metadata["filename"]}')
+
+        # For non-HTML documents, clean all table items
+        if self.remove_tables:
+            doc_10q = self.remove_html_tables(doc_10q, is_html=is_html)
+
+        # Prepare the JSON content with filing metadata
+        json_content = {
+            "cik": filing_metadata["CIK"],
+            "company": filing_metadata["Company"],
+            "filing_type": filing_metadata["Type"],
+            "filing_date": filing_metadata["Date"],
+            "period_of_report": filing_metadata["Period of Report"],
+            "sic": filing_metadata["SIC"],
+            "state_of_inc": filing_metadata["State of Inc"],
+            "state_location": filing_metadata["State location"],
+            "fiscal_year_end": filing_metadata["Fiscal Year End"],
+            "filing_html_index": filing_metadata["html_index"],
+            "htm_filing_link": filing_metadata["htm_file_link"],
+            "complete_text_filing_link": filing_metadata["complete_text_file_link"],
+            "filename": filing_metadata["filename"],
+        }
+
+        # Initialize item sections as empty strings in the JSON content
+        for item_index in self.items_to_extract:
+            json_content[f"item_{item_index}"] = ""
+
+        # Extract the text from the document and clean it.
+        text = ExtractItems.strip_html(str(doc_10q))
+        text = ExtractItems.clean_text(text)
+
+        positions = []
+        all_items_null = True
+        for i, item_index in enumerate(self.items_list):
+            next_item_list = self.items_list[i + 1 :]
+
+            # Parse each item/section and get its content and positions
+            item_section, positions = self.parse_item(
+                text, item_index, next_item_list, positions
+            )
+
+            # Remove multiple lines from the item section
+            item_section = ExtractItems.remove_multiple_lines(item_section)
+
+            if item_index in self.items_to_extract:
+                if item_section != "":
+                    all_items_null = False
+                json_content[f"item_{item_index}"] = item_section
+
+        if all_items_null:
+            LOGGER.info(f"\nCould not extract any item for {absolute_10q_fn}")
+            return None
+
+        return json_content, csv_content
 
     def extract_items_10k(self, filing_metadata: Dict[str, Any]) -> Any:
         """Extracts all items/sections for a 10-K file and writes it to a CIK_10K_YEAR.json file.
@@ -717,6 +779,8 @@ class ExtractItems:
             if not is_html:
                 doc_10k = content
 
+        csv_content = self.retrieve_html_tables(doc_10k, is_html)
+
         # Check if the document is plain text without <DOCUMENT> tags (e.g., old TXT format)
         if filing_metadata["filename"].endswith("txt") and not documents:
             LOGGER.info(f'\nNo <DOCUMENT> tag for {filing_metadata["filename"]}')
@@ -772,7 +836,7 @@ class ExtractItems:
             LOGGER.info(f"\nCould not extract any item for {absolute_10k_filename}")
             return None
 
-        return json_content
+        return json_content, csv_content
 
     def process_filing(self, filing_metadata: Dict[str, Any]) -> int:
         """Process a filing by extracting items/sections and saving the content to a JSON file.
@@ -781,27 +845,33 @@ class ExtractItems:
         :returns: 0 if the processing is skipped, 1 if the processing is performed.
         """
         json_filename = f'{filing_metadata["filename"].split(".")[0]}.json'
+        csv_filename = f'{filing_metadata["filename"].split(".")[0]}.csv'
 
         # Create the absolute path for the JSON file
         absolute_json_filename = os.path.join(
             self.extracted_files_folder, json_filename
         )
+        absolute_csv_filename = os.path.join(self.extracted_files_folder, csv_filename)
         # Skip processing if the extracted JSON file already exists and skip flag is enabled
         if self.skip_extracted_filings and os.path.exists(absolute_json_filename):
             return 0
 
-        print("\nProcessing", filing_metadata)
-
         # Extract items from the filing
         if filing_metadata["Type"] == "10-K":
-            json_content = self.extract_items_10k(filing_metadata)
+            json_content, csv_content_pds = self.extract_items_10k(filing_metadata)
         elif filing_metadata["Type"] == "10-Q":
-            json_content = self.extract_items_10q(filing_metadata)
+            json_content, csv_content_pds = self.extract_items_10q(filing_metadata)
         else:
             LOGGER.info(
                 f'\nSkipping {filing_metadata["filename"]} because it is not a 10-K or 10-Q'
             )
             return 0
+
+        if csv_content_pds is not None:
+            with open(absolute_csv_filename, "w") as f:
+                for df in csv_content_pds:
+                    df.to_csv(f, index=False)
+                    f.write("\n")
 
         # Write the JSON content to the file if not None.
         if json_content is not None:
