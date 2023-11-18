@@ -134,21 +134,6 @@ class ExtractItems:
             "14",
             "15",
         ]
-        self.items_list_10q = [
-            "1",
-            "1A",
-            "1B",
-            "1C",
-            "1D",
-            "1E",
-            "1F",
-            "1G",
-            "2",
-            "3",
-            "4",
-            "5",
-            "6",
-        ]
         # If no specific items to extract are provided, use default list
         self.items_to_extract = (
             items_to_extract if items_to_extract else self.items_list
@@ -807,7 +792,6 @@ def main() -> None:
                 ncols=100,
             )
         )
-
     LOGGER.info("\nItem extraction is completed successfully.")
     LOGGER.info(f"{sum(processed)} files were processed.")
     LOGGER.info(f"Extracted filings are saved to: {extracted_filings_folder}.")

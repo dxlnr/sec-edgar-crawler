@@ -206,7 +206,7 @@ def download_indices(
     """
     base_url = "https://www.sec.gov/Archives/edgar/full-index/"
 
-    LOGGER.info("Downloading EDGAR Index files")
+    LOGGER.info("Downloading EDGAR Index files.")
     # Validate quarters
     for quarter in quarters:
         if quarter not in [1, 2, 3, 4]:
@@ -277,7 +277,7 @@ def download_indices(
             LOGGER.info(f"Could not download the following indices:\n{failed_indices}")
             user_input = input("Retry (Y/N): ")
             if user_input in ["Y", "y", "yes"]:
-                LOGGER.info("Retry downloading failed indices")
+                LOGGER.info("Retry downloading failed indices.")
             else:
                 break
         else:
@@ -403,8 +403,7 @@ def get_specific_indices(
 def crawl(
     filing_types: List[str], series: pd.Series, raw_filings_folder: str, user_agent: str
 ) -> pd.Series:
-    """
-    This function is responsible for crawling the EDGAR HTML indexes and extracting required details.
+    """This function is responsible for crawling the EDGAR HTML indexes and extracting required details.
     Such details include the Filing Date, the Period of Report, the State location, the Fiscal Year End, and many more.
 
     :param filing_types: List of filing types to download.
