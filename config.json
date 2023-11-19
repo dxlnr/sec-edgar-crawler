@@ -4,7 +4,7 @@
 		"end_year": 2023,
 		"quarters": [1, 2, 3, 4],
 		"filing_types": ["10-K", "10-Q"],
-		"cik_tickers": ["GOOG", "MSFT", "AMZN", "LSCC", "SMLR"],
+		"cik_tickers": ["GOOG", "MSFT", "AMZN", "LSCC", "SMLR", "NVDA", "AMD", "INTC", "AAPL", "TSLA", "NFLX", "DIS", "EA", "TTWO", "TTD", "ROKU", "SPOT", "PINS", "SNAP", "YELP", "MTCH", "ETSY", "EBAY", "PYPL", "SQ", "SHOP", "BABA", "JD", "BIDU", "IQ", "WB", "BILI", "NTES", "SOHU", "BZUN", "MOMO", "YY", "HUYA", "DOYU", "IQ", "WB", "BILI", "NTES", "TCEHY", "SINA", "SOHU", "BZUN", "MOMO", "YY", "HUYA", "DOYU", "IQ", "WB", "BILI", "NTES", "TCEHY", "SINA", "SOHU", "BZUN", "MOMO", "YY", "HUYA", "DOYU", "IQ", "WB", "BILI", "NTES", "TCEHY", "SINA", "SOHU", "BZUN", "MOMO", "YY", "HUYA", "DOYU", "IQ", "WB", "BILI", "NTES", "TCEHY", "SINA", "SOHU", "BZUN", "MOMO", "YY", "HUYA", "DOYU", "IQ", "WB", "BILI", "NTES", "TCEHY", "SINA", "SOHU", "BZUN", "MOMO", "YY", "HUYA", "DOYU", "IQ", "WB", "BILI", "NTES", "TCEHY", "SINA", "SOHU", "BZUN", "MOMO", "YY", "HUYA", "DOYU"],
 		"user_agent": "alpha inc. illner.daniel@gmail.com",
 		"raw_filings_folder": "RAW_FILINGS",
 		"indices_folder": "INDICES",
