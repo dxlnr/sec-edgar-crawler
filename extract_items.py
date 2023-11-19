@@ -395,11 +395,22 @@ class ExtractItems:
 
                     for row in rows:
                         cols = [
-                            re.sub(r"[\$\)]", "", ele.text.strip())
+                            re.sub(r"[\$\*]", "", ele.text.strip())
                             for ele in row.find_all("td")
                         ]
-                        cols = [x + ")" if x.startswith("(") else x for x in cols]
                         cols = list(filter(None, cols))
+                        tmp = []
+                        i = 0
+                        while i < len(cols):
+                            if i + 1 < len(cols) and (
+                                cols[i + 1] == "%" or cols[i + 1] == ")"
+                            ):
+                                tmp.append(cols[i] + cols[i + 1])
+                                i += 2
+                            else:
+                                tmp.append(cols[i])
+                                i += 1
+                        cols = tmp
 
                         if len(cols) > 1:
                             table_data.append(cols)
