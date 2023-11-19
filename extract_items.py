@@ -425,6 +425,62 @@ class ExtractItems:
 
         return dfs
 
+    def extract_tables(self, filing_metadata: Dict[str, Any]) -> list[pd.DataFrame]:
+        """Extracts all tables for 10-K/10-Q files and returns it as a list of pandas DataFrames.
+
+        :param filing_metadata: a pandas series containing all filings metadata
+        :returns: pandas DataFrame containing numerical data.
+        """
+        absolute_10k_filename = os.path.join(
+            self.raw_files_folder, filing_metadata["filename"]
+        )
+        # Read the content of the 10-K file
+        with open(absolute_10k_filename, "r", errors="backslashreplace") as file:
+            content = file.read()
+
+        # Remove all embedded pdfs that might be seen in few old 10-K txt annual reports
+        content = re.sub(r"<PDF>.*?</PDF>", "", content, flags=regex_flags)
+
+        # Find all <DOCUMENT> tags within the content
+        documents = re.findall("<DOCUMENT>.*?</DOCUMENT>", content, flags=regex_flags)
+
+        # Initialize variables
+        doc_10k = None
+        found_10k, is_html = False, False
+
+        # Find the 10-K document
+        for doc in documents:
+            # Find the <TYPE> tag within each <DOCUMENT> tag to identify the type of document
+            doc_type = re.search(r"\n[^\S\r\n]*<TYPE>(.*?)\n", doc, flags=regex_flags)
+            doc_type = doc_type.group(1) if doc_type else None
+
+            # Check if the document is a 10-K
+            if doc_type.startswith("10"):
+                # Check if the document is HTML or plain text
+                doc_10k = BeautifulSoup(doc, "lxml")
+                is_html = (True if doc_10k.find("td") else False) and (
+                    True if doc_10k.find("tr") else False
+                )
+                if not is_html:
+                    doc_10k = doc
+                found_10k = True
+                break
+
+        if not found_10k:
+            if documents:
+                LOGGER.info(
+                    f'\nCould not find document type 10K for {filing_metadata["filename"]}'
+                )
+            # If no 10-K document is found, parse the entire content as HTML or plain text
+            doc_10k = BeautifulSoup(content, "lxml")
+            is_html = (True if doc_10k.find("td") else False) and (
+                True if doc_10k.find("tr") else False
+            )
+            if not is_html:
+                doc_10k = content
+
+        return self.retrieve_html_tables(doc_10k, is_html)
+
     def parse_item(
         self,
         text: str,
